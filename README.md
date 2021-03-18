@@ -1,3 +1,3 @@
-# mysql-benzinska
-Jednostavan MySQL projekt -benzinske postaje iz kolegija Baze II
+# mysql-benzinska-postaja
+Jednostavan MySQL projekt iz kolegija Baze II
 
