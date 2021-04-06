@@ -58,7 +58,7 @@ CREATE TABLE gorivo (
     CONSTRAINT CHK_cijena_goriva CHECK (cijena > 0),
     CONSTRAINT CHK_vrsta_goriva CHECK (vrsta = 'BENZIN' OR vrsta = 'DIZEL' OR vrsta = 'PLIN' OR vrsta = 'LOŽ ULJE')
 );
-drop table gorivo;
+
 
 CREATE TABLE pumpa (
 	id INTEGER NOT NULL UNIQUE PRIMARY KEY,
@@ -93,7 +93,7 @@ CREATE TABLE racun (
     osnovica NUMERIC (8,2),
     PDV NUMERIC(8,2),
     ukupno NUMERIC(8,2),
-    FOREIGN KEY (id_blagajnik) REFERENCES blagajnik(id),
+    FOREIGN KEY (id_blagajnik) REFERENCES blagajnik(id) ON DELETE CASCADE,
     CONSTRAINT CHK_osnovica CHECK (osnovica >= 0),
     CONSTRAINT CHK_PDV CHECK (PDV >= 0),
     CONSTRAINT CHK_ukupno CHECK (ukupno >= 0)
@@ -101,7 +101,7 @@ CREATE TABLE racun (
 
 ######################-INSERTI-##############################
 
-INSERT INTO benzinska VALUES (1, 'CRObenz', '052/000-111', 'Rovinjska 14', 'Pula' , 52220);
+INSERT INTO benzinska VALUES (1, 'IstraBenz', '052/000-111', 'Rovinjska 14', 'Pula' , 52220);
 
 INSERT INTO voditelj VALUES (1, '12345', '12345678910', 'Marko', 'Marić', STR_TO_DATE('1.2.2021', '%d.%m.%Y'), 6700);
 
@@ -607,20 +607,20 @@ SELECT kolicina_prodanog_artikl(50);
 
 #--PROCEDURA ZA DODAVANJE NOVOG BLAGAJNIKA--#
 DELIMITER //
-CREATE PROCEDURE dodaj_blagajnika (p_id INTEGER, p_sifra VARCHAR(11), p_OIB VARCHAR(11), p_ime CHAR(30), p_prezime CHAR(30), p_placa INTEGER) 
+CREATE PROCEDURE dodaj_blagajnika (p_sifra VARCHAR(11), p_OIB VARCHAR(11), p_ime CHAR(30), p_prezime CHAR(30), p_placa INTEGER) 
 BEGIN 
 
 
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 START TRANSACTION;
-INSERT INTO blagajnik VALUES (p_id, p_sifra, p_OIB, p_ime, p_prezime, NOW(), p_placa);
+INSERT INTO blagajnik VALUES (NULL, p_sifra, p_OIB, p_ime, p_prezime, NOW(), p_placa);
 SELECT CONCAT ('Uspjesno dodan zaposlenik!') AS USPJEŠNO;
 COMMIT;
 
 END//
 DELIMITER ;
 
-CALL dodaj_blagajnika (4, 44, '56437483921', 'Test', 'Test', 6540);
+CALL dodaj_blagajnika (44, '56437483921', 'Test', 'Test', 6540);
 
 #--PROCEDURA ZA UKLANJANJE BLAGAJNIKA--#
 DELIMITER //
@@ -665,6 +665,7 @@ END//
 DELIMITER ;
 
 DELIMITER //
+
 CREATE PROCEDURE pregled_istipkanih_racuna_blagajnika (p_id_blagajnik INTEGER) 
 BEGIN 
 
@@ -678,7 +679,62 @@ DELIMITER ;
 									#id_blagajnik
 CALL pregled_istipkanih_racuna_blagajnika(1);
 
+DELIMITER //
+CREATE PROCEDURE dodaj_artikl (p_id INTEGER, p_vrsta VARCHAR(20), p_naziv VARCHAR(50), p_cijena NUMERIC(10,2)) 
+BEGIN 
 
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+INSERT INTO artikl VALUES (p_id,p_vrsta, p_naziv, p_cijena);
+SELECT CONCAT ('Uspjesno dodan artikl!') AS USPJEŠNO;
+COMMIT;
+
+END//
+DELIMITER ;
+
+CALL dodaj_artikl(69, 'ostalo', 'test', 50.45);
+
+DELIMITER //
+CREATE PROCEDURE dodaj_gorivo (p_id INTEGER, p_vrsta VARCHAR(20), p_naziv VARCHAR(50), p_cijena NUMERIC(10,2)) 
+BEGIN 
+
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+INSERT INTO gorivo VALUES (p_id,p_vrsta, p_naziv, p_cijena);
+SELECT CONCAT ('Uspjesno dodan artikl!') AS USPJEŠNO;
+COMMIT;
+
+END//
+DELIMITER ;
+
+CALL dodaj_gorivo(104, 'benzin', 'eurosuper 200', 11.44);
+
+DELIMITER //
+CREATE PROCEDURE brisanje_blagajnika (p_id INTEGER) 
+BEGIN 
+DECLARE v_ime CHAR(30);
+DECLARE v_prezime CHAR(30);
+
+SELECT ime INTO v_ime FROM blagajnik
+WHERE id = p_id;
+SELECT prezime INTO v_prezime FROM blagajnik
+WHERE id = p_id;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+IF p_id NOT IN (SELECT id FROM blagajnik)
+THEN ROLLBACK;
+SELECT CONCAT('Ne postoji taj zaposlenik!') AS GREŠKA;
+ELSE 
+SELECT CONCAT ('Zaposlenik ',v_ime, ' ',v_prezime,' ID: ', p_id, ' je uspješno obrisan') AS USPJEŠNO;
+DELETE FROM blagajnik
+WHERE id=p_id;
+COMMIT;
+END IF;
+
+END//
+DELIMITER ;
+
+CALL brisanje_blagajnika(13);
 
 ######-SVE FUNKCIJE I PROCEDURE-######
 
@@ -741,8 +797,19 @@ CALL pregled_istipkanih_racuna;
 									#id_blagajnik
 CALL pregled_istipkanih_racuna_blagajnika(1);
 
+#procedura za dodavati blagajnika 
+					  #sifra     oib       ime    prezime  placa
+CALL dodaj_blagajnika (44, '56437483921', 'Zoran', 'Tratin', 6540);
 
+#procedura za dodavati artikle
+				#id    vrsta    naziv   cijena
+CALL dodaj_artikl(69, 'ostalo', 'test', 50.45);
 
+#procedura za dodavati gorivo
+				#  id   vrsta        naziv        cijena
+CALL dodaj_gorivo(104, 'benzin', 'eurosuper 200', 11.44);
 
-
+#procedura za brisanje blagajnika
+						#id
+CALL brisanje_blagajnika(13);
 
