@@ -451,7 +451,7 @@ CALL pregled_stavki (1);
 
 ## -PROCEDURA ZA BRISANJE PROIZVODA SA TREUNTNE KUPNJE- ##
 DELIMITER //
-CREATE PROCEDURE brisanje_proizvoda (p_id_proizvod INTEGER) 
+CREATE PROCEDURE brisanje_stavki_kupnje (p_id_proizvod INTEGER) 
 BEGIN 
 
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
@@ -468,9 +468,8 @@ END IF;
 END//
 DELIMITER ;
 
- 					#id_proizvoda
-CALL brisanje_proizvoda (44);
-
+ 					    #id_proizvoda
+CALL brisanje_stavki_kupnje (44);
 
 ## -PROCEDURA ZA DODAVANJE/MICANJE KOLICINE PROIZVODA SA TRENUTNE KUPNJE- ##
 DELIMITER //
@@ -736,6 +735,39 @@ DELIMITER ;
 
 CALL brisanje_blagajnika(13);
 
+DELIMITER //
+
+#-PROCEDURA ZA BRISANJE ARTIKLA/GORIVA PREKO IMENA
+CREATE PROCEDURE brisanje_proizvoda (p_naziv VARCHAR(50))  
+BEGIN 
+DECLARE p_id INTEGER;
+
+
+SELECT id INTO p_id FROM proizvodi  
+where naziv=p_naziv;
+
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+IF p_naziv NOT IN (SELECT naziv FROM proizvodi)
+THEN ROLLBACK;
+SELECT CONCAT('Ne postoji taj proizvod!') AS GREŠKA;
+ELSEIF p_id IN (SELECT id FROM artikl) THEN
+SELECT CONCAT ('Proizvod ID: ',p_id,' Naziv: ',p_naziv,' je uspješno obrisan') AS USPJEŠNO;
+DELETE FROM artikl
+WHERE id=p_id;
+COMMIT;
+ELSE 
+SELECT CONCAT ('Proizvod ID: ',p_id,' Naziv: ',p_naziv,' je uspješno obrisan') AS USPJEŠNO;
+DELETE FROM gorivo
+WHERE id=p_id;
+COMMIT;
+END IF;
+
+END//
+DELIMITER ;
+CALL brisanje_proizvoda('boca plina');
+
+
 ######-SVE FUNKCIJE I PROCEDURE-######
 
 #funckija za vidjeti kolicinu prodanog artikla
@@ -813,3 +845,6 @@ CALL dodaj_gorivo(104, 'benzin', 'eurosuper 200', 11.44);
 						#id
 CALL brisanje_blagajnika(13);
 
+#procedura za brisanje proizvoda preko naziva
+						#   naziv
+CALL brisanje_proizvoda('boca plina');
