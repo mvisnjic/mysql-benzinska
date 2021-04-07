@@ -473,7 +473,7 @@ CALL brisanje_stavki_kupnje (44);
 
 ## -PROCEDURA ZA DODAVANJE/MICANJE KOLICINE PROIZVODA SA TRENUTNE KUPNJE- ##
 DELIMITER //
-CREATE PROCEDURE brisanje_kolicine_proizvoda (p_id_proizvod INTEGER, p_kol NUMERIC(8,2), p VARCHAR(4)) 
+CREATE PROCEDURE brisanje_kolicine_stavki (p_id_proizvod INTEGER, p_kol NUMERIC(8,2), p VARCHAR(4)) 
 BEGIN 
 
 
@@ -498,7 +498,7 @@ END IF;
 END//
 DELIMITER ;
 					#id_proizvod,kolicina, dodaj/oduzmi
-CALL brisanje_kolicine_proizvoda (100, 46, 'oduzmi');
+CALL brisanje_kolicine_stavki (100, 46, 'oduzmi');
 
 DELIMITER //
 CREATE FUNCTION ukupan_iznos (p_id_pumpa INTEGER) RETURNS NUMERIC(8,2) 
@@ -792,24 +792,30 @@ SELECT ukupan_broj_proizvoda();
 #funkcija koja vraća ukupan broj istipkanih racuna
 SELECT ukupno_racuna() AS broj_izdanih_racuna;
 
-#####-PROCEDURE-#####
 
+
+#### --OBAVLJANJE KUPNJE -- ####
 #procedura za obavljati kupnju(blagajnik prodaje kupcu)
 #id_blagajnika, id_proizvoda, kolicina
 CALL kupi (1, 50, 10);
-
-#procedura za brisanje kolicine proizvoda u trenutnoj kupnji
-							#id_proizvoda, kolicina, oduzimi/dodaj
-CALL brisanje_kolicine_proizvoda (100, 46, 'oduzmi');
-
-#procedura za brisanje proizvoda sa kupnje
-					#id_proizvoda
-CALL brisanje_proizvoda (44);
 
 #procedura za pregled stavki u trenutnoj kupnji			
 				#id_pumpa
 CALL pregled_stavki (1);
 
+#procedura za brisanje kolicine proizvoda u trenutnoj kupnji
+							#id_proizvoda, kolicina, oduzimi/dodaj
+CALL brisanje_kolicine_stavki (100, 46, 'oduzmi');
+
+#procedura za brisanje proizvoda sa kupnje
+					#id_proizvoda
+CALL brisanje_stavki_kupnje (44);
+#procedura za ispisati racun
+		#id_blagajnik, id_pumpa
+CALL ispis_racuna(1,1);
+
+
+##### -- MIJENJANJE CIJENE GORIVA ILI ARTIKALA -- #####
 #procedura za uvecati/umanjiti cijene goriva
 				#uvecaj/umanji, vrsta, iznos za koliko se uveca/umanji
 CALL cijena_goriva ('uvecaj', 'benzin', 3.36);
@@ -818,10 +824,8 @@ CALL cijena_goriva ('uvecaj', 'benzin', 3.36);
 				#uvecaj/umanji, naziv artikla, iznos
 CALL cijena_artikla('uvecaj', 'espresso', 3.5);
 
-#procedura za ispisati racun
-		#id_blagajnik, id_pumpa
-CALL ispis_racuna(1,1);
 
+#### -- 'STATISTIKA' -- ####
 #procedura za pregled svih istipkanih racuna(sa imenima i prezimenima blagajnika)
 CALL pregled_istipkanih_racuna;
 
@@ -829,15 +833,17 @@ CALL pregled_istipkanih_racuna;
 									#id_blagajnik
 CALL pregled_istipkanih_racuna_blagajnika(1);
 
+
+#### -- 'POSTAVKE' -- ####
 #procedura za dodavati blagajnika 
 					  #sifra     oib       ime    prezime  placa
 CALL dodaj_blagajnika (44, '56437483921', 'Zoran', 'Tratin', 6540);
 
-#procedura za dodavati artikle
+#procedura za dodavati nove artikle
 				#id    vrsta    naziv   cijena
 CALL dodaj_artikl(69, 'ostalo', 'test', 50.45);
 
-#procedura za dodavati gorivo
+#procedura za dodavati novo gorivo
 				#  id   vrsta        naziv        cijena
 CALL dodaj_gorivo(104, 'benzin', 'eurosuper 200', 11.44);
 
