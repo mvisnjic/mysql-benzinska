@@ -40,6 +40,8 @@ CREATE TABLE blagajnik (
     CONSTRAINT CHK_placa_blagajnik CHECK (placa >= 4450)
 );
 
+
+
 CREATE TABLE artikl (
 	id INTEGER NOT NULL UNIQUE,
     vrsta VARCHAR(20),
@@ -88,17 +90,17 @@ CREATE TABLE prodani_proizvodi (
 
 CREATE TABLE racun (
 	id INTEGER NOT NULL UNIQUE AUTO_INCREMENT,
-    id_blagajnik INTEGER NOT NULL,
+    id_blagajnik INTEGER,
 	datum_izdavanja DATETIME DEFAULT NOW(),
     osnovica NUMERIC (8,2),
     PDV NUMERIC(8,2),
     ukupno NUMERIC(8,2),
-    FOREIGN KEY (id_blagajnik) REFERENCES blagajnik(id) ON DELETE CASCADE,
+    FOREIGN KEY (id_blagajnik) REFERENCES blagajnik(id) ON DELETE SET NULL,
     CONSTRAINT CHK_osnovica CHECK (osnovica >= 0),
     CONSTRAINT CHK_PDV CHECK (PDV >= 0),
     CONSTRAINT CHK_ukupno CHECK (ukupno >= 0)
 );
-
+drop table racun;
 ######################-INSERTI-##############################
 
 INSERT INTO benzinska VALUES (1, 'IstraBenz', '052/000-111', 'Rovinjska 14', 'Pula' , 52220);
@@ -303,7 +305,7 @@ END IF;
 END//
 DELIMITER ;
 
-SELECT prosjecna_cijena_goriva('LOŽ ulje');
+SELECT prosjecna_cijena_goriva('PLIN');
 
 DELIMITER //
 
@@ -344,7 +346,7 @@ END IF;
 END//
 DELIMITER ;
 				#uvecaj/umanji, vrsta_gorivo, iznos
-CALL cijena_goriva ('uvecaj', 'benzin', 3.36);
+CALL cijena_goriva ('uvecaj', 'benzin', 1.00);
 CALL cijena_goriva ('umanji', 'benzin', 3.36);
 
 DELIMITER //
@@ -385,7 +387,7 @@ END IF;
 END//
 DELIMITER ;
 				#uvecaj/umanji, naziv artikla, iznos
-CALL cijena_artikla('uvecaj', 'espresso', 3.5);
+CALL cijena_artikla('umanji', 'kakao', 3.5);
 
 # -PROCEDURA ZA OBAVITI KUPNJU-#
 DELIMITER //
@@ -435,7 +437,7 @@ CALL kupi (1, 50, 10);
 
 ##- PROCEDURA ZA PREGLED STAVKI NA RACUNU-##
 DELIMITER //
-CREATE PROCEDURE pregled_stavki (p_id_pumpa INTEGER) 
+CREATE PROCEDURE pregled_stavki_kupnje (p_id_pumpa INTEGER) 
 BEGIN 
 
 SELECT id_pumpa,p.id AS sifra_artikla,naziv,kolicina,cijena,SUM(cijena*kolicina) AS iznos FROM proizvodi p
@@ -447,12 +449,16 @@ GROUP BY k.id;
 END//
 DELIMITER ;
 				#broj_pumpe	
-CALL pregled_stavki (1);
+CALL pregled_stavki_kupnje (1);
 
 ## -PROCEDURA ZA BRISANJE PROIZVODA SA TREUNTNE KUPNJE- ##
 DELIMITER //
 CREATE PROCEDURE brisanje_stavki_kupnje (p_id_proizvod INTEGER) 
 BEGIN 
+DECLARE art VARCHAR(50);
+
+SELECT naziv INTO art FROM proizvodi
+WHERE id=p_id_proizvod;
 
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 START TRANSACTION;
@@ -463,6 +469,7 @@ ELSE
 DELETE FROM kupnja
 WHERE id_proizvod=p_id_proizvod;
 COMMIT;
+SELECT CONCAT('Artikl: ', art," je uklonjen sa kupnje!") AS USPJEŠNO;
 END IF;
 
 END//
@@ -473,10 +480,12 @@ CALL brisanje_stavki_kupnje (44);
 
 ## -PROCEDURA ZA DODAVANJE/MICANJE KOLICINE PROIZVODA SA TRENUTNE KUPNJE- ##
 DELIMITER //
-CREATE PROCEDURE brisanje_kolicine_stavki (p_id_proizvod INTEGER, p_kol NUMERIC(8,2), p VARCHAR(4)) 
+CREATE PROCEDURE brisanje_kolicine_stavki (p_id_proizvod INTEGER, p_kol NUMERIC(8,2), p VARCHAR(6)) 
 BEGIN 
+DECLARE naz VARCHAR(50);
 
-
+SELECT naziv INTO naz FROM proizvodi
+WHERE id = p_id_proizvod;
 
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 START TRANSACTION;
@@ -493,13 +502,14 @@ UPDATE kupnja
 SET kolicina = kolicina-p_kol
 WHERE id_proizvod=p_id_proizvod;
 COMMIT;
+SELECT CONCAT('Artikl: ', naz, ', kolicina je umanjena za ', p_kol,'.') AS USPJEŠNO;
 END IF;
 
 END//
 DELIMITER ;
 					#id_proizvod,kolicina, dodaj/oduzmi
 CALL brisanje_kolicine_stavki (100, 46, 'oduzmi');
-
+drop procedure brisanje_kolicine_stavki;
 DELIMITER //
 CREATE FUNCTION ukupan_iznos (p_id_pumpa INTEGER) RETURNS NUMERIC(8,2) 
 DETERMINISTIC
@@ -557,45 +567,58 @@ DELIMITER ;
 		#id_blagajnik, id_pumpa
 CALL ispis_racuna(1,2);
 
-#--FUNKCIJA ZA VIDJETI KOLIKO JE LITARA ODREĐENE VRSTE GORIVA PRODANO!--#
+#--FUNKCIJA ZA VIDJETI KOLIKO JE LITARA ODREĐENOG GORIVA PRODANO!--#
 DELIMITER //
-CREATE FUNCTION kolicina_prodanog_goriva (p_id_gorivo INTEGER) RETURNS NUMERIC(10,2)
+CREATE FUNCTION kolicina_prodanog_goriva (p_id_gorivo INTEGER) RETURNS VARCHAR(150)
 DETERMINISTIC
 BEGIN
 DECLARE br NUMERIC(10,2);
- 
+DECLARE _ime VARCHAR(50);
+
 SELECT SUM(kolicina) INTO br FROM prodani_proizvodi pp 
 INNER JOIN gorivo g ON pp.id_proizvod = g.id
 WHERE g.id = p_id_gorivo;
 
+SELECT g.ime INTO _ime FROM prodani_proizvodi pp 
+INNER JOIN gorivo g ON pp.id_proizvod = g.id
+WHERE g.id = p_id_gorivo
+ORDER BY g.id LIMIT 1;
 
 IF p_id_gorivo NOT IN (SELECT id FROM gorivo)THEN
-RETURN NULL;
+RETURN CONCAT('ID:', p_id_proizvod, ' ne postoji!'); 
 ELSE
-RETURN br;
+RETURN CONCAT('Proizvod: ',_ime,'. Prodana količina: ',br,' litara.');
 END IF;
 
 END//
 DELIMITER ;
 							 #id goriva
-SELECT kolicina_prodanog_goriva (100);
-
-#--FUNKCIJA ZA VIDJETI KOLIKO JE ARTIKALA PRODANO!--#
+SELECT kolicina_prodanog_goriva (102);
+SELECT * FROM prodani_proizvodi pp 
+INNER JOIN gorivo g ON pp.id_proizvod = g.id
+WHERE g.id = 102
+ORDER BY g.id LIMIT 1;
+drop function kolicina_prodanog_goriva;
+#--FUNKCIJA ZA VIDJETI KOLIKO JE KOMADA ARTIKALA PRODANO!--#
 DELIMITER //
-CREATE FUNCTION kolicina_prodanog_artikl (p_id_artikl INTEGER) RETURNS NUMERIC(10,2)
+CREATE FUNCTION kolicina_prodanog_artikl (p_id_artikl INTEGER) RETURNS TINYTEXT
 DETERMINISTIC
 BEGIN
 DECLARE br NUMERIC(10,2);
+DECLARE _naziv VARCHAR(50);
  
 SELECT SUM(kolicina) INTO br FROM prodani_proizvodi pp 
 INNER JOIN artikl a ON pp.id_proizvod = a.id
 WHERE a.id = p_id_artikl;
 
-
+SELECT naziv INTO _naziv FROM prodani_proizvodi pp 
+INNER JOIN artikl a ON pp.id_proizvod = a.id
+WHERE a.id = p_id_artikl
+ORDER BY a.id LIMIT 1;
 IF p_id_artikl NOT IN (SELECT id FROM artikl)THEN
-RETURN NULL;
+RETURN CONCAT('ID:', p_id_proizvod, ' ne postoji!');
 ELSE
-RETURN br;
+RETURN CONCAT('Proizvod: ',_naziv,'. Prodana količina: ',br,' komada.');
 END IF;
 
 END//
@@ -621,21 +644,7 @@ DELIMITER ;
 
 CALL dodaj_blagajnika (44, '56437483921', 'Test', 'Test', 6540);
 
-#--PROCEDURA ZA UKLANJANJE BLAGAJNIKA--#
-DELIMITER //
-CREATE PROCEDURE dodaj_blagajnika (p_id INTEGER, p_sifra VARCHAR(11), p_OIB VARCHAR(11), p_ime CHAR(30), p_prezime CHAR(30), p_placa INTEGER) 
-BEGIN 
-
-
-SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-START TRANSACTION;
-INSERT INTO blagajnik VALUES (p_id, p_sifra, p_OIB, p_ime, p_prezime, NOW(), p_placa);
-SELECT CONCAT ('Uspjesno dodan zaposlenik!') AS USPJEŠNO;
-COMMIT;
-
-END//
-DELIMITER ;
-
+#-FUNCKIJA KOJA VRAĆA BROJ UKUPNO ISTIPKANIH RACUNA-#
 DELIMITER //
 CREATE FUNCTION ukupno_racuna () RETURNS INTEGER
 DETERMINISTIC
@@ -651,20 +660,22 @@ DELIMITER ;
 
 SELECT ukupno_racuna() AS broj_izdanih_racuna;
 
-
+#PREGLED SVIH ISTIPKANIH RAČUNA(trenutnim zaposlenicima će pisati id,ime i prezime, a onima koji ne rade više tj.obrisani su njima piše NULL.)-#
 DELIMITER //
 CREATE PROCEDURE pregled_istipkanih_racuna () 
 BEGIN 
 
 SELECT r.id AS racun_broj, r.id_blagajnik, b.ime,b.prezime,r.datum_izdavanja,r.osnovica,r.PDV,r.ukupno
 FROM racun r 
-INNER JOIN blagajnik b ON r.id_blagajnik = b.id;
+LEFT JOIN blagajnik b ON r.id_blagajnik = b.id;
 
 END//
 DELIMITER ;
 
 DELIMITER //
 
+CALL pregled_istipkanih_racuna();
+#-PROCEDURA ZA PREGLED ISTIPKANIH RACUNA TRENUTNIH ZAPOSLENIH BLAGAJNIKA-#
 CREATE PROCEDURE pregled_istipkanih_racuna_blagajnika (p_id_blagajnik INTEGER) 
 BEGIN 
 
@@ -733,7 +744,7 @@ END IF;
 END//
 DELIMITER ;
 
-CALL brisanje_blagajnika(13);
+CALL brisanje_blagajnika(4);
 
 DELIMITER //
 
@@ -780,7 +791,8 @@ SELECT ukupan_iznos(1) AS ukupno_sa_pdv;
 
 #funkcija za vidjeti kolicinu prodanog goriva
 							  #id_goriva
-SELECT kolicina_prodanog_goriva (100);
+SELECT kolicina_prodanog_goriva (101);
+
 
 #funkcija za izracunati prosjecnu cijenu goriva
 							  #vrsta goriva
@@ -797,23 +809,22 @@ SELECT ukupno_racuna() AS broj_izdanih_racuna;
 #### --OBAVLJANJE KUPNJE -- ####
 #procedura za obavljati kupnju(blagajnik prodaje kupcu)
 #id_blagajnika, id_proizvoda, kolicina
-CALL kupi (1, 50, 10);
+CALL kupi (2, 102, 50.45);
 
 #procedura za pregled stavki u trenutnoj kupnji			
 				#id_pumpa
-CALL pregled_stavki (1);
+CALL pregled_stavki_kupnje (2);
 
 #procedura za brisanje kolicine proizvoda u trenutnoj kupnji
-							#id_proizvoda, kolicina, oduzimi/dodaj
-CALL brisanje_kolicine_stavki (100, 46, 'oduzmi');
+					#sifra_artikla, kolicina, oduzimi/dodaj
+CALL brisanje_kolicine_stavki (102, 0.20, 'oduzmi');
 
 #procedura za brisanje proizvoda sa kupnje
-					#id_proizvoda
-CALL brisanje_stavki_kupnje (44);
+					#sifra_artikla
+CALL brisanje_stavki_kupnje (102);
 #procedura za ispisati racun
 		#id_blagajnik, id_pumpa
-CALL ispis_racuna(1,1);
-
+CALL ispis_racuna(1,2);
 
 ##### -- MIJENJANJE CIJENE GORIVA ILI ARTIKALA -- #####
 #procedura za uvecati/umanjiti cijene goriva
@@ -826,13 +837,12 @@ CALL cijena_artikla('uvecaj', 'espresso', 3.5);
 
 
 #### -- 'STATISTIKA' -- ####
-#procedura za pregled svih istipkanih racuna(sa imenima i prezimenima blagajnika)
-CALL pregled_istipkanih_racuna;
+#procedura za pregled svih istipkanih racuna(sa imenima i prezimenima blagajnik, prikazuje samo racune trenutnih zaposlenika)
+CALL pregled_istipkanih_racuna();
 
 #procedura za pregled istipkanih racuna za odredenog blagajnika
 									#id_blagajnik
 CALL pregled_istipkanih_racuna_blagajnika(1);
-
 
 #### -- 'POSTAVKE' -- ####
 #procedura za dodavati blagajnika 
@@ -849,8 +859,22 @@ CALL dodaj_gorivo(104, 'benzin', 'eurosuper 200', 11.44);
 
 #procedura za brisanje blagajnika
 						#id
-CALL brisanje_blagajnika(13);
+CALL brisanje_blagajnika(2);
 
 #procedura za brisanje proizvoda preko naziva
 						#   naziv
 CALL brisanje_proizvoda('boca plina');
+
+SELECT id_pumpa,p.id AS sifra_artikla, naziv, cijena, kolicina FROM prodani_proizvodi pp
+INNER JOIN proizvodi p
+ON p.id = pp.id_proizvod
+ORDER BY p.naziv;
+
+##-USERS-##
+CREATE USER benza_voditelj IDENTIFIED BY '000';
+GRANT ALL PRIVILEGES ON benza.* TO benza_voditelj;
+
+CREATE USER benza_blagajnik IDENTIFIED BY '111';
+# user napravljen, treba jos dovrstiti da mu ne damo pravo na sve!
+
+## I treba TESTAT JOS JEDNOM! hh
