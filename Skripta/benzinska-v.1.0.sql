@@ -280,7 +280,7 @@ RETURN broj;
 END//
 DELIMITER ;
 
-# SELECT ukupan_broj_proizvoda();
+#SELECT ukupan_broj_proizvoda();
 
 #### -FUNCKIJA KOJA VRACA PROSJEK CIJENE GORIVA OVISNO O VRSTI KOJU UPIŠEMO- #### 2. 
 DELIMITER //
@@ -302,7 +302,8 @@ END IF;
 END//
 DELIMITER ;
 
-# SELECT prosjecna_cijena_goriva('PLIN');
+#SELECT prosjecna_cijena_goriva('dizel');
+
 
 #--FUNKCIJA ZA VIDJETI KOLIKO JE LITARA ODREĐENOG GORIVA PRODANO!--# 3.
 DELIMITER //
@@ -330,7 +331,7 @@ END IF;
 END//
 DELIMITER ;
 							 #id goriva
-#SELECT kolicina_prodanog_goriva (102);
+#SELECT kolicina_prodanog_goriva (100);
 
 #--FUNKCIJA ZA VIDJETI KOLIKO JE KOMADA ARTIKALA PRODANO!--# 4.
 DELIMITER //
@@ -357,7 +358,7 @@ END IF;
 END//
 DELIMITER ;
 	     				   #id artikla
-#SELECT kolicina_prodanog_artikl(50);
+#SELECT kolicina_prodanog_artikl(20);
 
 #--FUNKCIJA ZA UKUPAN IZNOS RACUNA-## 5. 
 DELIMITER //
@@ -372,9 +373,6 @@ WHERE id_pumpa = p_id_pumpa;
 RETURN ukupan_iznos;
 END//
 DELIMITER ;
-
-#SELECT ukupan_iznos(0) AS ukupno_sa_pdv;
-
 
 #-FUNCKIJA KOJA VRAĆA BROJ UKUPNO ISTIPKANIH RACUNA-# 6.
 DELIMITER //
@@ -429,9 +427,8 @@ END IF;
 END//
 DELIMITER ;
 				#uvecaj/umanji, vrsta_gorivo, iznos
-#CALL cijena_goriva ('uvecaj', 'benzin', 1.00);
+#CALL cijena_goriva ('uvecaj', 'benzin', 5.00);
 #CALL cijena_goriva ('umanji', 'benzin', 3.36);
-
 
 ##-PROCEDURA ZA UVECATI/UMANJITI CIJENE ARTIKLA PREMA IMENU--## 2.
 DELIMITER //
@@ -489,8 +486,6 @@ LIMIT 1;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 START TRANSACTION;
 
-INSERT INTO kupnja VALUES (NULL, p_id_pumpa, p_id_proizvod, p_kolicina);
-
 IF p_id_pumpa NOT IN (SELECT id FROM pumpa) THEN
 ROLLBACK;
 SELECT CONCAT('Krivi ID pumpe!') AS GREŠKA;
@@ -504,13 +499,14 @@ ELSEIF p_id_proizvod NOT IN (SELECT id FROM proizvodi) THEN
 ROLLBACK;
 SELECT CONCAT('Krivi ID proizvoda!') AS GREŠKA;
 ELSE SELECT CONCAT('Uspješna narudžba!') AS USPJEŠNO;
+INSERT INTO kupnja VALUES (NULL, p_id_pumpa, p_id_proizvod, p_kolicina);
 COMMIT;
 END IF;
 
 END//
 DELIMITER ;
 	#id_pumpa, id_proizvod, kolicina
-#CALL kupi (0, 4, 3);
+#CALL kupi (1, 5, 2);
 
 ##- PROCEDURA ZA PREGLED STAVKI NA TRENUTNOJ KUPNJI-## 4.
 DELIMITER //
@@ -525,7 +521,7 @@ GROUP BY k.id;
 END//
 DELIMITER ;
 				#broj_pumpe	
-#CALL pregled_stavki_kupnje (0);
+#CALL pregled_stavki_kupnje (1);
 
 ## -PROCEDURA ZA BRISANJE PROIZVODA SA TREUNTNE KUPNJE- ## 5.
 DELIMITER //
@@ -552,7 +548,7 @@ END//
 DELIMITER ;
 
  					    #id_proizvoda
-#CALL brisanje_stavki_kupnje (4);
+#CALL brisanje_stavki_kupnje (5);
 
 ## -PROCEDURA ZA DODAVANJE/MICANJE KOLICINE PROIZVODA SA TRENUTNE KUPNJE- ## 6.
 DELIMITER //
@@ -585,7 +581,7 @@ END IF;
 END//
 DELIMITER ;
 					#id_proizvod,kolicina, dodaj/oduzmi
-#CALL brisanje_kolicine_stavki (4, 2, 'dodaj');
+#CALL brisanje_kolicine_stavki (3, 1, 'dodaj');
 
 #--PROCEDURA ZA ISPIS RACUNA-## 7.
 DELIMITER //
@@ -626,7 +622,7 @@ END IF;
 END//
 DELIMITER ;
 		#id_blagajnik, id_pumpa
-#CALL ispis_racuna(2,5);
+#CALL ispis_racuna(2,1);
 
 #PREGLED SVIH ISTIPKANIH RAČUNA(zaposlenicima će pisati id,ime i prezime, u slučaju da je netko izbrisao zaposlenika pisati će NULL.)-# 8.
 DELIMITER //
@@ -655,13 +651,12 @@ WHERE b.id=p_id_blagajnik;
 END//
 DELIMITER ;
 									#id_blagajnik
-#CALL pregled_istipkanih_racuna_blagajnika(1);
+#CALL pregled_istipkanih_racuna_blagajnika(3);
 
 #--PROCEDURA ZA DODAVANJE NOVOG BLAGAJNIKA--# 10.
 DELIMITER //
 CREATE PROCEDURE dodaj_blagajnika (p_sifra VARCHAR(11), p_OIB VARCHAR(11), p_ime CHAR(30), p_prezime CHAR(30), p_placa INTEGER) 
 BEGIN 
-
 
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 START TRANSACTION;
@@ -672,7 +667,7 @@ COMMIT;
 END//
 DELIMITER ;
 
-#CALL dodaj_blagajnika (44, '56437483921', 'Test', 'Test', 6540);
+#CALL dodaj_blagajnika (44, '56437483921', 'Test', 'Test', 5000);
 
 ##-PROCEDURA ZA BRISANJE BLAGAJNIKA-## 11.
 DELIMITER //
@@ -700,7 +695,7 @@ END IF;
 END//
 DELIMITER ;
 
-#CALL brisanje_blagajnika(4);
+#CALL brisanje_blagajnika(5);
 
 ##-PROCEDURA ZA DODAVANJE NOVOG ARTIKLA-## 12.
 DELIMITER //
@@ -726,7 +721,7 @@ BEGIN
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 START TRANSACTION;
 INSERT INTO gorivo VALUES (p_id,p_vrsta, p_naziv, p_cijena);
-SELECT CONCAT ('Uspjesno dodan artikl!') AS USPJEŠNO;
+SELECT CONCAT ('Uspjesno dodano gorivo!') AS USPJEŠNO;
 COMMIT;
 
 END//
@@ -764,7 +759,7 @@ END IF;
 END//
 DELIMITER ;
 
-#CALL brisanje_proizvoda('boca plina');
+#CALL brisanje_proizvoda('');
 
 ##-USERS-##
 CREATE USER benza_voditelj IDENTIFIED BY '000';
